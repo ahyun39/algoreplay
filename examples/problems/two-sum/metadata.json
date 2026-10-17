@@ -1,0 +1,19 @@
+{
+  "problem_id": "two-sum",
+  "title": "Two Sum",
+  "difficulty": "easy",
+  "source": "example",
+  "tags": [
+    "array",
+    "hash-map"
+  ],
+  "language": "python",
+  "entrypoint": "solution",
+  "tests_file": "tests.json",
+  "hints": [
+    "각 원소마다 '짝이 되는 값'은 이미 정해져 있다.",
+    "지금까지 본 값을 O(1)로 찾을 수 있는 자료구조는?",
+    "값 -> 인덱스를 dict에 저장하며 한 번만 순회한다.",
+    "for i, x in enumerate(nums): if target-x in seen: return ...; seen[x] = i"
+  ]
+}

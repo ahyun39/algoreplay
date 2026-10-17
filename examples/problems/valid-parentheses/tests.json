@@ -1,0 +1,44 @@
+[
+  {
+    "name": "simple",
+    "args": [
+      "()"
+    ],
+    "expected": true
+  },
+  {
+    "name": "mixed",
+    "args": [
+      "()[]{}"
+    ],
+    "expected": true
+  },
+  {
+    "name": "wrong",
+    "args": [
+      "(]"
+    ],
+    "expected": false
+  },
+  {
+    "name": "nested",
+    "args": [
+      "{[()]}"
+    ],
+    "expected": true
+  },
+  {
+    "name": "cross",
+    "args": [
+      "([)]"
+    ],
+    "expected": false
+  },
+  {
+    "name": "open",
+    "args": [
+      "(("
+    ],
+    "expected": false
+  }
+]

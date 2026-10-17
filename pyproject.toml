@@ -1,0 +1,22 @@
+[project]
+name = "algoreplay"
+version = "0.2.0"
+description = "Re-solve your own past algorithm problems, compare past and current solutions, and learn from the difference."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+
+[tool.ruff]
+line-length = 130  # Korean UI strings are double-width
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["algoreplay", "conftest", "views"]

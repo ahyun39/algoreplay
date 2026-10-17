@@ -1,0 +1,87 @@
+/* AlgoReplay UI theme (light). Loaded by app.py.
+   System fonts only: no external font request, works offline. */
+:root {
+  --ar-brand: #5b5ce2; --ar-brand-dark: #4849ca; --ar-ink: #192238; --ar-muted: #6d7890; --ar-line: #e5eaf2;
+  --ar-side: #171a2c; --ar-side-field: #22263d; --ar-side-border: #373d59; --ar-side-text: #eef0fb;
+}
+html, body, [class*="css"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR",
+               "Malgun Gothic", "Segoe UI", sans-serif;
+}
+.stApp { background: #f5f7fb; color: var(--ar-ink); }
+[data-testid="stHeader"] { background: rgba(245, 247, 251, .88); }
+/* top padding clears the fixed Streamlit header (60px) */
+[data-testid="stMainBlockContainer"] { max-width: 1500px; padding-top: 4.6rem; padding-bottom: 3rem; }
+
+/* ---------- sidebar (dark) ---------- */
+[data-testid="stSidebar"] { background: var(--ar-side); border-right: 1px solid #252941; }
+[data-testid="stSidebar"] * { color: var(--ar-side-text); }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #a9afc7; }
+/* Streamlit 1.65 selectbox is a react-aria [role=group] */
+[data-testid="stSidebar"] [data-testid="stTextInputRootElement"],
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [role="group"] {
+  background: var(--ar-side-field); border-color: var(--ar-side-border);
+}
+[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] input,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] input { background: transparent; color: var(--ar-side-text); }
+[data-testid="stSidebar"] input::placeholder { color: #8f96b3; opacity: 1; }
+[data-testid="stSidebar"] [data-testid="stExpander"] { border-color: #343952; background: #1c2035; border-radius: 12px; }
+/* the open/hovered expander header otherwise gets the light theme's white background */
+[data-testid="stSidebar"] [data-testid="stExpander"] details,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover { background: transparent; }
+/* alerts in the sidebar (e.g. a failed sync) keep their own readable colors */
+[data-testid="stSidebar"] [data-testid="stAlertContainer"] * { color: inherit; }
+
+/* ---------- typography ---------- */
+h1, h2, h3 { letter-spacing: -.035em; color: var(--ar-ink); }
+h1 { font-size: 2rem !important; font-weight: 800 !important; }
+h2 { font-size: 1.28rem !important; font-weight: 750 !important; }
+h3 { font-size: 1rem !important; font-weight: 750 !important; }
+p, [data-testid="stCaptionContainer"] { color: var(--ar-muted); }
+textarea, .ace_editor, code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; }
+
+/* ---------- cards & widgets ---------- */
+[data-testid="stMetric"] {
+  background: white; border: 1px solid var(--ar-line); padding: 1rem 1.1rem; border-radius: 15px;
+  box-shadow: 0 7px 24px rgba(31, 42, 75, .035);
+}
+[data-testid="stMetricLabel"] { color: var(--ar-muted); font-size: .78rem; font-weight: 650; }
+[data-testid="stMetricValue"] { color: var(--ar-ink); font-size: 1.75rem; font-weight: 800; }
+div[data-testid="stVerticalBlockBorderWrapper"] {
+  border-radius: 16px; border-color: var(--ar-line); background: white; box-shadow: 0 7px 24px rgba(31, 42, 75, .035);
+}
+.stButton > button { border-radius: 10px; font-weight: 650; border-color: #e0e5ef; transition: all .16s ease; min-height: 2.55rem; }
+.stButton > button[kind="primary"] { background: var(--ar-brand); border-color: var(--ar-brand); color: white; }
+.stButton > button:hover { border-color: #b9bbf5; color: var(--ar-brand); }
+.stButton > button[kind="primary"]:hover { background: var(--ar-brand-dark); color: white; }
+/* button labels are <p>: keep the button's color instead of the muted paragraph gray */
+.stButton > button p, [data-testid="stFormSubmitButton"] button p { color: inherit; }
+[data-testid="stTabs"] [role="tablist"] { gap: .5rem; border-bottom: 1px solid var(--ar-line); }
+[data-testid="stTabs"] button[role="tab"] { padding: .8rem 1.05rem; border-radius: 10px 10px 0 0; font-weight: 700; color: var(--ar-muted); }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] { color: var(--ar-brand); background: #eeeeff; }
+[data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea { border-radius: 9px; border-color: #dfe5ef; }
+[data-testid="stDataFrame"] { border: 1px solid var(--ar-line); border-radius: 11px; overflow: hidden; }
+[data-testid="stExpander"] { border: 1px solid var(--ar-line); border-radius: 12px; background: white; }
+hr { border-color: #edf0f6; }
+
+/* ---------- hero & section labels ---------- */
+.ar-hero {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; padding: 1.55rem 1.7rem;
+  margin-bottom: 1.2rem; border-radius: 18px; background: linear-gradient(120deg, #fff 0%, #f0f0ff 100%);
+  border: 1px solid #e3e5fb;
+}
+.ar-eyebrow { font-size: .68rem; letter-spacing: .14em; font-weight: 800; color: var(--ar-brand); margin-bottom: .5rem; }
+.ar-title { font-size: 1.85rem; line-height: 1.25; letter-spacing: -.05em; font-weight: 800; color: var(--ar-ink); margin: 0 0 .45rem; }
+.ar-subtitle { font-size: .88rem; color: var(--ar-muted); margin: 0; }
+.ar-chip {
+  display: inline-flex; padding: .35rem .65rem; border-radius: 999px; background: #e8f7f0; color: #168765;
+  font-size: .7rem; font-weight: 750; white-space: nowrap;
+}
+.ar-section-label { color: var(--ar-brand); font-size: .68rem; font-weight: 800; letter-spacing: .13em; margin: .35rem 0 .25rem; }
+
+@media (max-width: 800px) {
+  [data-testid="stMainBlockContainer"] { padding: 4.2rem .8rem 2rem; }
+  .ar-hero { align-items: flex-start; flex-direction: column; padding: 1.2rem; }
+  .ar-title { font-size: 1.5rem; }
+}

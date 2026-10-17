@@ -1,0 +1,18 @@
+{
+  "problem_id": "binary-search",
+  "title": "Binary Search",
+  "difficulty": "easy",
+  "source": "example",
+  "tags": [
+    "binary-search"
+  ],
+  "language": "python",
+  "entrypoint": "solution",
+  "tests_file": "tests.json",
+  "hints": [
+    "배열이 정렬되어 있다는 조건을 어떻게 쓸 수 있을까?",
+    "매 단계 탐색 범위를 절반으로 줄인다.",
+    "[lo, hi] 닫힌 구간을 유지하고 while lo <= hi 로 반복한다.",
+    "mid = (lo+hi)//2; 작으면 lo=mid+1, 크면 hi=mid-1"
+  ]
+}

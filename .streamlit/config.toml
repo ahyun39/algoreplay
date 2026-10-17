@@ -1,0 +1,11 @@
+[browser]
+gatherUsageStats = false
+
+[server]
+address = "localhost"
+
+[theme]
+# The UI theme (algoreplay/theme.css) is light-only; the brand color also drives native accents
+# such as the active-tab underline, focus rings and checkboxes.
+base = "light"
+primaryColor = "#5b5ce2"

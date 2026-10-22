@@ -20,14 +20,14 @@ from pathlib import Path
 
 from .config import env
 
-OUTPUT_LIMIT = 4000
+OUTPUT_LIMIT = 100_000  # characters kept per output for display; judging always uses the full output
 
 # Runs inside the container. Tests arrive on stdin so the solution cannot read the expected answers from disk.
 HARNESS = r'''
 import contextlib, copy, io, json, resource, signal, subprocess, sys, time, traceback, tracemalloc
 mode, entry, per_test = sys.argv[1], sys.argv[2], float(sys.argv[3])
 tests = json.loads(sys.stdin.read())
-LIMIT = 4000
+LIMIT = 100000
 def norm(s):
     return "\n".join(line.rstrip() for line in s.rstrip().splitlines())
 results, peak_kb = [], 0.0
@@ -39,7 +39,7 @@ if mode == "stdio":
             p = subprocess.run([sys.executable, "/work/solution.py"], input=t["input"], capture_output=True,
                                text=True, timeout=per_test, cwd="/tmp")
             r["ms"] = (time.perf_counter() - start) * 1000
-            r["output"], r["truncated"] = p.stdout[-LIMIT:], len(p.stdout) > LIMIT
+            r["output"], r["truncated"] = p.stdout[:LIMIT], len(p.stdout) > LIMIT
             if p.returncode != 0:
                 lines = p.stderr.strip().splitlines()
                 r["error"] = (lines[-1] if lines else "exit code %d" % p.returncode)[:300]
@@ -68,8 +68,9 @@ else:
         tracemalloc.start()
         signal.setitimer(signal.ITIMER_REAL, per_test)
         start = time.perf_counter()
+        printed = io.StringIO()
         try:
-            with contextlib.redirect_stdout(captured):
+            with contextlib.redirect_stdout(printed):
                 got = fn(*copy.deepcopy(t["input"]))
             signal.setitimer(signal.ITIMER_REAL, 0)
             try:
@@ -86,6 +87,7 @@ else:
             r["error"] = ("%s: %s" % (type(e).__name__, e))[:300]
             r["stderr"] = traceback.format_exc(limit=3)[-LIMIT:]
         r["ms"] = (time.perf_counter() - start) * 1000
+        r["stdout"] = printed.getvalue()[:LIMIT]
         peak_kb = max(peak_kb, tracemalloc.get_traced_memory()[1] / 1024)
         tracemalloc.stop()
         results.append(r)

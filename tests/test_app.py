@@ -1,6 +1,8 @@
 """UI smoke test with Streamlit's AppTest (no browser, no Docker needed)."""
 from streamlit.testing.v1 import AppTest
 
+from algoreplay import db as database
+from algoreplay import problems
 from algoreplay.config import ROOT
 
 
@@ -20,6 +22,18 @@ def test_pages_sync_and_navigation(tmp_path, monkeypatch):
     assert not at.exception
     next(b for b in at.button if b.label.startswith("힌트")).click().run()
     assert not at.exception and at.info
+
+    first, second = [p["id"] for p in problems.list_problems(database.connect())][:2]
+    for pid in (second, first, second, first):                         # switching back and forth always lands
+        next(s for s in at.selectbox if s.label.startswith("문제 (")).set_value(pid).run()
+        assert at.session_state.pid == pid and not at.exception
+
+    problems.save_draft(database.connect(), second, "# half-written answer\n")
+    fresh = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60)  # browser closed and reopened
+    fresh.session_state.pid = fresh.session_state.pinned = second
+    fresh.run()
+    fresh.switch_page("views/practice.py").run()
+    assert fresh.session_state.editor_init == "# half-written answer\n"
 
     at.switch_page("views/history.py").run()                           # 학습 기록
     assert not at.exception

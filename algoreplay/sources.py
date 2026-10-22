@@ -569,6 +569,9 @@ def sync(db, src, progress=None):
                 if reason:  # None = not a solution file at all (e.g. requirements.txt)
                     skipped.append((d, reason))
                 continue
+            # Same file, new key (e.g. a parser improvement): rename in place so tests and history stay attached.
+            db.execute("UPDATE OR IGNORE problems SET problem_key=? WHERE repository_id=? AND github_path=? "
+                       "AND problem_key!=?", (prob["problem_key"], repo_id, d, prob["problem_key"]))
             owner_path = db.execute("SELECT github_path FROM problems WHERE repository_id=? AND problem_key=?",
                                     (repo_id, prob["problem_key"])).fetchone()
             if found[d][0] == "loose" and not owner_path:  # unnumbered file: match an existing problem by title
@@ -581,9 +584,11 @@ def sync(db, src, progress=None):
             _upsert(db, repo_id, d, shas[d], prob, ts)
             stats["updated" if d in known or owner_path else "added"] += 1
 
-    # Removed from the repo: delete only if never attempted, so personal history survives.
+    # Removed from the repo: delete only without attempts, user tests or a draft, so personal work survives.
     for (pid, path) in db.execute("SELECT id, github_path FROM problems WHERE repository_id=?", (repo_id,)).fetchall():
-        if path not in found and not db.execute("SELECT 1 FROM attempts WHERE problem_id=?", (pid,)).fetchone():
+        if path not in found and not db.execute(
+                "SELECT 1 FROM attempts WHERE problem_id=? UNION SELECT 1 FROM tests WHERE problem_id=? AND origin!='repo' "
+                "UNION SELECT 1 FROM drafts WHERE problem_id=?", (pid, pid, pid)).fetchone():
             db.execute("DELETE FROM problems WHERE id=?", (pid,))
             stats["removed"] += 1
 

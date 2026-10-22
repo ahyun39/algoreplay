@@ -122,8 +122,10 @@ def test_sync_examples_incremental_and_removal(db, tmp_path):
     assert sources.sync(db, src)["updated"] == 1
     assert len(problems.get_tests(db, by_key["boj-90001"]["id"])) == 1
 
-    # a problem deleted from the repo disappears unless it has history
+    # a problem deleted from the repo disappears unless it has history or tests the user added
     del src["files"][readme]
+    assert sources.sync(db, src)["removed"] == 0
+    problems.delete_test(db, problems.get_tests(db, by_key["boj-90001"]["id"])[0]["id"])
     assert sources.sync(db, src)["removed"] == 1
 
 
@@ -244,3 +246,26 @@ def test_leethub_sql_tests_from_examples():
     assert t["expected"] == {"columns": ["id"], "rows": [["1"]], "ordered": False}
     assert sources.parse_leethub(LEETHUB_README, "class Solution: pass", "x.py")[0] is None
     assert sources.parse_leethub(BOJ_README, "", "a.sql") is None  # not LeetHub: falls through
+
+
+def test_user_tests_survive_resync(db, tmp_path):
+    d = tmp_path / "baekjoon"
+    d.mkdir()
+    (d / "77_old name.txt").write_text("print(input())\n", encoding="utf-8")
+    sources.sync(db, sources.local_source(tmp_path))
+    pid = problems.list_problems(db)[0]["id"]
+    problems.add_tests(db, pid, [{"input": "1\n", "expected": "1"}])
+    (d / "77_old name.txt").rename(d / "77_new name.txt")  # file moved: the problem keeps the user's test
+    sources.sync(db, sources.local_source(tmp_path))
+    assert any(t["origin"] == "user" for p in problems.list_problems(db) for t in problems.get_tests(db, p["id"]))
+
+
+def test_drafts_persist_and_starter_is_not_stored(db):
+    sources.sync(db, sources.local_source(EXAMPLES))
+    pid = problems.list_problems(db)[0]["id"]
+    problems.save_draft(db, pid, "print('half done')\n")
+    assert problems.get_draft(db, pid) == "print('half done')\n"
+    problems.save_draft(db, pid, None)                                   # editor not mounted: keep the draft
+    assert problems.get_draft(db, pid) == "print('half done')\n"
+    problems.save_draft(db, pid, problems.starter_code(db, pid))         # reset to starter: nothing to keep
+    assert problems.get_draft(db, pid) is None

@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS learning_events (
   id INTEGER PRIMARY KEY, problem_id INTEGER, attempt_id INTEGER, event_type TEXT NOT NULL,
   topic TEXT, score REAL, detail_json TEXT, created_at TEXT NOT NULL);
 
+CREATE TABLE IF NOT EXISTS drafts (     -- code being written, so it survives closing the browser
+  problem_id INTEGER PRIMARY KEY REFERENCES problems(id) ON DELETE CASCADE,
+  code TEXT NOT NULL, updated_at TEXT NOT NULL);
+
 CREATE INDEX IF NOT EXISTS idx_attempts_problem ON attempts(problem_id);
 CREATE INDEX IF NOT EXISTS idx_tests_problem ON tests(problem_id);
 CREATE INDEX IF NOT EXISTS idx_learning_topic ON learning_events(topic);

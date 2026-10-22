@@ -68,3 +68,11 @@ def test_sql_judge():
     deleted = [{**SQL_TESTS[0], "input": {**SQL_TESTS[0]["input"], "result_table": "Owner"},
                 "expected": {"columns": ["id", "kind"], "rows": [["1", "cat"], ["3", "cat"]], "ordered": False}}]
     assert status("DELETE FROM Owner WHERE kind IS NULL;", deleted, "sql") == "PASS"
+
+
+@needs_docker
+def test_full_output_and_prints_are_kept():
+    r = run_tests("def solution(a, t):\n    print('debug', a)\n    return [0, 1]\n", FN_TESTS)
+    assert r["status"] == "PASS" and r["results"][0]["stdout"] == "debug [2, 7, 11, 15]\n"
+    long = run_tests("print('x' * 10000)\n", [{"name": "t", "input": "", "expected": "x" * 10000}], "stdio")
+    assert long["status"] == "PASS" and len(long["results"][0]["output"].strip()) == 10000

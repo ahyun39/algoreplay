@@ -18,7 +18,8 @@ def save_attempt(db, problem_id, code, result, analysis=None, comparison=None, r
         "failed_count,stdout,stderr,results_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         (problem_id, code, ts, result["status"], result.get("runtime_ms"), result.get("peak_memory_kb"),
          result.get("passed"), result.get("failed"), result.get("stdout"), result.get("stderr"),
-         json.dumps(result.get("results", []), ensure_ascii=False))).lastrowid
+         json.dumps([{k: v[:2000] if isinstance(v, str) else v for k, v in r.items()}  # history keeps a preview
+                     for r in result.get("results", [])], ensure_ascii=False))).lastrowid
     if analysis and "error" not in analysis:
         db.execute(
             "INSERT INTO analyses(attempt_id,complexity_time,complexity_space,complexity_confidence,"

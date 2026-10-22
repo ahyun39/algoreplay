@@ -53,6 +53,23 @@ def starter_code(db, problem_id):
     return f"def {p['entrypoint']}({', '.join(args)}):\n    answer = None\n    return answer\n"
 
 
+def get_draft(db, problem_id):
+    row = db.execute("SELECT code FROM drafts WHERE problem_id=?", (problem_id,)).fetchone()
+    return row[0] if row else None
+
+
+def save_draft(db, problem_id, code):
+    """Keep the editor content per problem; the untouched starter code is not stored."""
+    if code is None:  # editor not mounted yet: nothing to save
+        return
+    if code.strip() == starter_code(db, problem_id).strip():
+        db.execute("DELETE FROM drafts WHERE problem_id=?", (problem_id,))
+    else:
+        db.execute("INSERT INTO drafts(problem_id, code, updated_at) VALUES(?,?,?) ON CONFLICT(problem_id) "
+                   "DO UPDATE SET code=excluded.code, updated_at=excluded.updated_at", (problem_id, code, now()))
+    db.commit()
+
+
 def get_tests(db, problem_id):
     return [{"id": r["id"], "name": r["name"], "origin": r["origin"], "input": json.loads(r["input_json"]),
              "expected": json.loads(r["expected_json"])}

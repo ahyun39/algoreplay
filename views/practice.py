@@ -25,14 +25,20 @@ f = ss.setdefault("filters", {"query": "", "source": None, "difficulty": None, "
 
 
 def pick(label, options, name, labels):
-    f[name] = st.selectbox(label, options, index=options.index(f[name]) if f[name] in options else 0,
-                           format_func=lambda x: labels.get(x, x))
+    # Fixed keys: a selectbox whose `index` changes between reruns is rebuilt and can show a stale choice.
+    # "전체" is stored as "" because a keyed selectbox reads None as "nothing selected".
+    options = ["" if o is None else o for o in options]
+    if ss.get(f"flt_{name}") not in options:  # first visit, back from another page, or option gone
+        ss[f"flt_{name}"] = f[name] if f[name] in options else ""
+    value = st.selectbox(label, options, key=f"flt_{name}", format_func=lambda x: labels.get(x or None, x))
+    f[name] = value or None
 
 
 before = dict(f)
 with st.sidebar:
     st.subheader("문제 필터")
-    f["query"] = st.text_input("검색", f["query"], placeholder="제목 또는 번호")
+    ss.setdefault("flt_query", f["query"])
+    f["query"] = st.text_input("검색", key="flt_query", placeholder="제목 또는 번호")
     pick("출처", [None] + problems.sources(db), "source", {None: "전체"})
     pick("난이도", [None, "easy", "medium", "hard"], "difficulty", {None: "전체", **DIFFICULTY_LABEL})
     pick("알고리즘", [None] + problems.topics(db), "topic", {None: "전체"})
@@ -54,22 +60,54 @@ if ss.get("pid") not in ids:  # nothing chosen yet: start from today's recommend
     ss.pid = rec["problem_id"] if rec and rec["problem_id"] in ids else ids[0]
 labels = {p["id"]: f"{STATUS_ICON[p['last_status']]} [{p['tier'] or p['difficulty']}] {p['title']} · "
                     f"{p['problem_key']}" for p in all_problems}
-ss.pid = st.selectbox(f"문제 ({len(shown)}개)", ids, index=ids.index(ss.pid), format_func=labels.get)
+if ss.get("pid_pick") != ss.pid:  # pid was set in code (recommendation, filter change, coming from another page)
+    ss.pid_pick = ss.pid
+ss.pid = st.selectbox(f"문제 ({len(shown)}개)", ids, key="pid_pick", format_func=labels.get,
+                      on_change=lambda: ss.update(pid=ss.pid_pick))  # a user pick wins over the line above
 if ss.pid != ss.get("pinned"):
     ss.pinned = None
 
-drafts = ss.setdefault("drafts", {})  # problem id -> code being written (kept while the browser tab lives)
+def as_text(value):
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def result_details(results):
+    """Full input / expected / output / print() / error of each test (the table above shortens them)."""
+    first_fail = next((i for i, r in enumerate(results) if not r["ok"]), None)
+    for i, r in enumerate(results):
+        mark = "✅" if r["ok"] else ("⏱️" if r.get("timeout") else "❌")
+        with st.expander(f"{mark} {r['name']} — 전체 입출력", expanded=i == first_fail):
+            st.caption("입력")
+            st.code(as_text(r["input"]), language="text")
+            c1, c2 = st.columns(2)
+            c1.caption("기대 출력")
+            c1.code("(기록 모드)" if r["expected"] is None else as_text(r["expected"]), language="text")
+            c2.caption("내 출력")
+            c2.code(r.get("output") or "(출력 없음)", language="text")
+            if r.get("truncated"):
+                st.caption(f"출력이 너무 길어 앞 {sandbox.OUTPUT_LIMIT:,}자만 표시합니다. 채점은 전체 출력으로 했습니다.")
+            if r.get("stdout"):
+                st.caption("print() 출력")
+                st.code(r["stdout"], language="text")
+            if r.get("stderr") or r.get("error"):
+                st.caption("오류")
+                st.code(r.get("stderr") or r["error"], language="text")
+
+
+drafts = ss.setdefault("drafts", {})  # problem id -> last code saved to the DB (avoids a write per rerun)
 
 def load_into_editor(text):
     """Replace the editor content: a new key remounts the editor with `text` as its initial value."""
     drafts[ss.pid] = ss.editor_init = text
+    problems.save_draft(db, ss.pid, text)
     ss.editor_rev = ss.get("editor_rev", 0) + 1
 
 if ss.get("loaded") != ss.pid:  # reset per-problem state, but restore the draft for this problem
-    ss.loaded, ss.hint_level, ss.hints, ss.result, ss.submitted = ss.pid, 0, {}, None, None
-    ss.editor_init = drafts.get(ss.pid) or problems.starter_code(db, ss.pid)
+    ss.loaded, ss.hint_level, ss.hints, ss.submitted = ss.pid, 0, {}, None
+    ss.result = ss.setdefault("runs", {}).get(ss.pid)  # the last run of this problem survives switching
+    ss.editor_init = drafts[ss.pid] = problems.get_draft(db, ss.pid) or problems.starter_code(db, ss.pid)
 elif entering:  # the editor was unmounted while away: remount it with the latest draft
-    ss.editor_init = drafts.get(ss.pid) or problems.starter_code(db, ss.pid)
+    ss.editor_init = drafts[ss.pid] = problems.get_draft(db, ss.pid) or problems.starter_code(db, ss.pid)
     ss.editor_rev = ss.get("editor_rev", 0) + 1
 
 prob = problems.get_problem(db, ss.pid)
@@ -104,7 +142,9 @@ with right:
                   theme="tomorrow_night" if dark else "chrome", tab_size=4, font_size=14, min_lines=20,
                   show_print_margin=False, auto_update=True,
                   key=f"code_{ss.pid}_{ss.get('editor_rev', 0)}")
-    drafts[ss.pid] = code
+    if code is not None and code != drafts.get(ss.pid):  # saved in the DB: survives closing the browser
+        drafts[ss.pid] = code
+        problems.save_draft(db, ss.pid, code)
     b1, b2, b3, b4 = st.columns(4)
     run = b1.button("테스트 실행")
     submit = b2.button("제출 및 분석", type="primary")
@@ -129,6 +169,13 @@ with st.expander(f"🧪 테스트 케이스 ({len(tests)})", expanded=not tests)
     if tests:
         st.dataframe([{"이름": t["name"], "출처": t["origin"], "입력": short(t["input"]),
                        "기대 출력": short(t["expected"])} for t in tests], hide_index=True)
+        shown_test = st.selectbox("전체 내용 보기", tests, format_func=lambda t: f"{t['name']} ({t['origin']})",
+                                  key=f"view_test_{ss.pid}")
+        c1, c2 = st.columns(2)
+        c1.caption("입력")
+        c1.code(as_text(shown_test["input"]), language="text")
+        c2.caption("기대 출력")
+        c2.code(as_text(shown_test["expected"]), language="text")
         removable = [t for t in tests if t["origin"] != "repo"]
         if removable:
             c1, c2 = st.columns([3, 1])
@@ -145,7 +192,7 @@ with st.expander(f"🧪 테스트 케이스 ({len(tests)})", expanded=not tests)
     if lang == "sql":  # tables come from the README examples; no free-form inputs for now
         st.caption("SQL 테스트는 문제 설명의 예제 표(Input/Output)로 자동 생성됩니다.")
     else:
-        with st.form(f"add_test_{ss.pid}", clear_on_submit=True):
+        with st.form(f"add_test_{ss.pid}_{ss.get('form_rev', 0)}"):  # not cleared on error, fresh after success
             c1, c2 = st.columns(2)
             raw_in = c1.text_area("입력 (표준 입력 그대로)" if stdio else "인자 (JSON 배열, 예: [[1, 2], 3])", height=140)
             raw_out = c2.text_area("기대 출력 (비우면 과거 풀이로 계산)", height=140)
@@ -165,6 +212,8 @@ with st.expander(f"🧪 테스트 케이스 ({len(tests)})", expanded=not tests)
                         if rejected:
                             raise ValueError(f"과거 풀이가 이 입력을 처리하지 못했습니다: {rejected[0][1]}")
                         problems.add_tests(db, ss.pid, made)
+                    ss.form_rev = ss.get("form_rev", 0) + 1
+                    st.toast("테스트를 저장했습니다. 다른 문제로 이동해도 유지됩니다.", icon="✅")
                     st.rerun()
                 except (ValueError, RuntimeError) as e:
                     st.error(str(e))
@@ -195,11 +244,13 @@ with st.expander(f"🧪 테스트 케이스 ({len(tests)})", expanded=not tests)
                        "미완성일 수 있습니다.")
             st.dataframe([{"이름": r["name"], "통과": r["ok"], "출력": short(r.get("output", "")),
                            "오류": r.get("error", "")} for r in check["results"]], hide_index=True)
+            result_details(check["results"])
 
 # ------------------------------------------------------------ run / submit
 if run or submit:
     with st.spinner("Sandbox에서 실행 중…"):
-        ss.result = sandbox.run_tests(code, tests, prob["judge"], prob["entrypoint"])
+        ss.result = ss.setdefault("runs", {})[ss.pid] = sandbox.run_tests(code, tests, prob["judge"],
+                                                                          prob["entrypoint"])
     ss.submitted = None
     if submit and ss.result["status"] not in ("SANDBOX_UNAVAILABLE", "NO_TESTS"):
         old_code = problems.get_old_solution(db, ss.pid)
@@ -236,7 +287,8 @@ if res:
                        "출력": short(r.get("output", ""), 60),
                        "오류": r.get("error") or ("시간 초과" if r.get("timeout") else "")}
                       for r in res["results"]], hide_index=True)
-    if res.get("stderr") and res["status"] != "PASS":
+        result_details(res["results"])
+    elif res.get("stderr"):
         st.code(res["stderr"], language="text")
 
 sub = ss.submitted
